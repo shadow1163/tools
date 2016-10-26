@@ -23,13 +23,13 @@ if ($@) {
 	exit(99);
 }
 
-my $original_projectname = '11.4';
-my $projectName = '11.12';
+my $original_projectname = 'mainline';
+my $projectName = '11.21';
 my $productName = 'XTM';
 my $productid = '1';
 
 #get originalscriptfolderid
-my $sql_cmd = "select id from scriptfolder where name = '$original_projectname' and parentid=0";
+my $sql_cmd = "select id from project where name = '$original_projectname' and productid=$productid";
 my $ret = query_column_db($sql_cmd);
 if ($ret->{ret} eq 'nok') {
 	print("Error to execute command \"$sql_cmd\"\n");
@@ -170,7 +170,8 @@ if ($ret1->{ret} eq 'nok') {
 
 for($i = 0; $i< $#$result;$i++) {
 	#print("111---$result->[$i]\n");
-	my $getidsql = "select copyid from `temp_scriptfolder` where originalid in (select parentid from scriptfolder where id in (select originalid from temp_scriptfolder where copyid=$result->[$i]))";
+	#my $getidsql = "select copyid from `temp_scriptfolder` where originalid in (select parentid from scriptfolder where id in (select originalid from temp_scriptfolder where copyid=$result->[$i]))";
+	my $getidsql = "select a.copyid from `temp_scriptfolder` a inner join `scriptfolder` b inner join temp_scriptfolder c on a.originalid = b.parentid and b.id = c.originalid where c.copyid=$result->[$i]";
 	my $ret2 = query_column_db($getidsql);
 	if ($ret2->{ret} eq 'nok') {
 		print("Error to execute command \"$sql_cmd\"\n");
@@ -337,7 +338,7 @@ $sql_cmd = "select * from `script` where project=$original_projectid";
 	$ret = query_column_db($getfolderidlist);
 	if ($ret->{ret} eq 'nok') {
 		print("error to execute command \"$getfolderidlist\"\n");
-		exit(1);
+		next;
 	}
 	my $folder_scriptfolderid = $ret->{value}->[0];
 	my $scriptsql="select copyid from temp_script where originalid=$folder_scripttscriptid";
@@ -467,7 +468,7 @@ if ($ret->{ret} eq 'nok') {
 }
 my $tmpsetfoldervalue = '';
 my $result = $ret->{value};
-for($i = 0; $i< $#$result;$i++) {
+for($i = 0; $i<= $#$result;$i++) {
 	$tmpsetfoldervalue = $tmpsetfoldervalue . "($tmpsetfoldervalueid[$i+1],'$tmpsetfoldervaluename[$i+1]',$result->[$i],'$tmpsetfoldervaluename[$i+1]'),";
 }
 $tmpsetfoldervalue =~ s/,$//;
@@ -478,9 +479,9 @@ if ($ret1->{ret} eq 'nok') {
 	print("Error to execute command \"$inserttempsql\"\n");
 	exit(1);
 }
-for(my $i = 0; $i< $#$result;$i++) {
+for(my $i = 0; $i<= $#$result;$i++) {
 	###update the parentid
-	my $getidsql="select copyid from temp_setfolder where originalid in (select parentid from setfolder where id in (select originalid from temp_setfolder where copyid=".$result->[$i]."))";
+	my $getidsql="select copyid from temp_setfolder where originalid in (select b.parentid from `setfolder` b inner join temp_setfolder c on b.id = c.originalid where c.copyid=".$result->[$i].")";
 	$ret = query_column_db($getidsql);
 	if ($ret->{ret} eq 'nok') {
 		print("error to execute command \"$getidsql\"\n");
@@ -855,6 +856,7 @@ sub update_db {
     eval{
 
         my $sth = $dbh->prepare($query_cmd);
+    	print("------------------> update_cmd:: $query_cmd\n");
         $sth->execute;
         $dbh->disconnect();
     };
